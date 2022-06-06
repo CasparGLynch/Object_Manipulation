@@ -9,7 +9,11 @@ public class
     
     [SerializeField] GameTile tilePrefab = default;
     
+    Queue<GameTile> searchFrontier = new Queue<GameTile>();
+
     Vector2Int size;
+
+    GameTile[] tiles;
 
     public void Initialize(Vector2Int size)
     {
@@ -19,17 +23,51 @@ public class
         Vector2 offset = new Vector2(
             (size.x - 1) * 0.5f, (size.y - 1) * 0.5f
         );
-        for (int y = 0; y < size.y; y++)
+        tiles = new GameTile[size.x * size.y];
+        for (int i = 0, y = 0; y < size.y; y++)
         {
-            for (int x = 0; x < size.x; x++)
+            for (int x = 0; x < size.x; x++, i++)
             {
-                GameTile tile = Instantiate(tilePrefab);
+                GameTile tile = tiles[i] = Instantiate(tilePrefab);
                 tile.transform.SetParent(transform, false);
                 tile.transform.localPosition = new Vector3(
                     x - offset.x,y - offset.y, 0f
                 );
+                if (x > 0)
+                {
+                    GameTile.MakeEastWestNeighbors(tile, tiles[i - 1]);
+                }
+                if (y > 0)
+                {
+                    GameTile.MakeNorthSouthNeighbors(tile, tiles[i - size.x]);
+                }
             }
         }
+        FindPaths();
     }
-     
+
+    void FindPaths()
+    {
+        foreach (GameTile tile in tiles)
+        {
+            tile.ClearPath();
+        }
+        tiles[tiles.Length / 2].BecomeDestination();
+        searchFrontier.Enqueue(tiles[tiles.Length / 2]);
+        while (searchFrontier.Count > 0)
+        {
+            GameTile tile = searchFrontier.Dequeue();
+            if (tile != null)
+            {
+                searchFrontier.Enqueue(tile.GrowPathNorth());
+                searchFrontier.Enqueue(tile.GrowPathSouth());
+                searchFrontier.Enqueue(tile.GrowPathEast());
+                searchFrontier.Enqueue(tile.GrowPathWest());
+            }
+        }
+        foreach (GameTile tile in tiles)
+        {
+            tile.ShowPath();
+        }
+    }
 }
